@@ -1,0 +1,16 @@
+{
+  "name": "C.O.R.E. Tracker",
+  "short_name": "CORE",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0a16",
+  "theme_color": "#00f0ff",
+  "description": "Aplicativo de Sincronização de Objetivos e Dados Financeiros",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

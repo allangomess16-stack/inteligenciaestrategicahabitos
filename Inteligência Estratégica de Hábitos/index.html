@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>C.O.R.E. Tracker - Smart Metrics & Deep Links</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0a0a16">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/8002/8002131.png">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap');
+
+        :root {
+            --bg-dark: #0a0a16; --bg-gradient: radial-gradient(circle at top right, #1a1a3a, #0a0a16 70%);
+            --glass-bg: rgba(20, 25, 45, 0.6); --glass-border: rgba(0, 240, 255, 0.2);
+            --primary-neon: #00f0ff; --secondary-neon: #b026ff; --text-main: #e0e6ed; --text-muted: #8b9bb4;
+            --warning-neon: #ffaa00; --danger-neon: #ff2a5f; --bonus-neon: #00ff88;
+            --arcade-red: #ea3323; --arcade-blue: #00bbf0; --arcade-yellow: #f6c215; --arcade-green: #56c21b; --arcade-purple: #d925e0;
+            --block-empty: rgba(255, 255, 255, 0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Rajdhani', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body { background: var(--bg-gradient); background-attachment: fixed; color: var(--text-main); display: flex; justify-content: center; padding: 10px; padding-bottom: 120px; min-height: 100vh; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(var(--glass-border) 1px, transparent 1px); background-size: 50px 50px; opacity: 0.1; z-index: -1; pointer-events: none; }
+
+        .main-wrapper { display: flex; flex-direction: column; gap: 20px; max-width: 800px; width: 100%; align-items: stretch; }
+
+        .hud-nav { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 16px; border: 1px solid var(--glass-border); position: sticky; top: 10px; z-index: 100; box-shadow: 0 5px 15px rgba(0,0,0,0.5); flex-wrap: wrap; gap: 10px;}
+        .hud-tabs { display: flex; gap: 5px; flex: 1; justify-content: flex-start; overflow-x: auto; padding-bottom: 2px;}
+        .hud-tab-btn { background: transparent; border: 1px solid transparent; color: var(--text-muted); font-size: 1em; font-weight: 700; cursor: pointer; padding: 6px 10px; border-radius: 8px; transition: 0.3s; white-space: nowrap; }
+        .hud-tab-btn.active { color: var(--primary-neon); border-color: var(--primary-neon); background: rgba(0,240,255,0.1); box-shadow: 0 0 10px rgba(0,240,255,0.2); }
+        .hud-tokens { display: flex; align-items: center; gap: 5px; font-family: 'Orbitron', sans-serif; color: var(--warning-neon); font-size: 1.2em; font-weight: 700; text-shadow: 0 0 10px var(--warning-neon); }
+
+        .view-section { display: none; animation: fadeIn 0.4s ease; }
+        .view-section.active { display: block; }
+
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 0 20px rgba(0, 240, 255, 0.05); padding: 20px; }
+
+        h1 { text-align: center; color: var(--primary-neon); margin-bottom: 5px; font-family: 'Orbitron', sans-serif; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 240, 255, 0.5); font-size: 1.8em; }
+        p.subtitle { text-align: center; color: var(--text-muted); margin-bottom: 20px; font-size: 1em; }
+
+        .btn-toggle-form { width: 100%; padding: 12px; background: rgba(0, 240, 255, 0.1); border: 1px dashed var(--primary-neon); color: var(--primary-neon); border-radius: 12px; font-size: 1.1em; font-weight: 700; cursor: pointer; margin-bottom: 20px; font-family: 'Orbitron', sans-serif; transition: 0.3s;}
+        .form-wrapper { display: none; margin-bottom: 20px;} .form-wrapper.active { display: block; animation: slideDown 0.3s; }
+        
+        .add-habit-form { display: flex; flex-direction: column; gap: 15px; background: rgba(0, 0, 0, 0.4); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .form-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .add-habit-form input, .add-habit-form select { flex: 1; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; outline: none; transition: 0.3s; font-size: 1em;}
+        .add-habit-form input:focus, .add-habit-form select:focus { border-color: var(--primary-neon); box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+        .add-habit-form select option { background: var(--bg-dark); }
+        .add-habit-form button { width: 100%; padding: 15px; background: linear-gradient(45deg, var(--primary-neon), #0077ff); color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 1.2em; font-family: 'Orbitron'; transition: 0.3s;}
+
+        .habit-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+        .habit-card-compact { background: rgba(10, 15, 30, 0.8); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; cursor: pointer; flex-wrap: wrap; gap: 10px; transition: 0.3s;}
+        .habit-card-compact:hover { transform: translateX(5px); border-color: var(--primary-neon); box-shadow: -5px 0 15px rgba(0, 240, 255, 0.2); }
+        .habit-card-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+        .habit-title { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.1em; color: #fff; }
+        .habit-value-badge { font-size: 0.85em; background: rgba(0, 240, 255, 0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(0, 240, 255, 0.2); color: var(--primary-neon); font-weight: 600; display: inline-block; width: fit-content; }
+        .btn-access { background: rgba(0, 240, 255, 0.1); border: 1px solid var(--primary-neon); color: var(--primary-neon); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.3s; font-size: 0.9em; white-space: nowrap;}
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: none; justify-content: center; align-items: center; z-index: 10000; padding: 10px; }
+        .modal-content { background: rgba(15, 20, 35, 0.98); border: 1px solid var(--primary-neon); border-radius: 20px; padding: 25px 20px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; position: relative; animation: modalFadeIn 0.3s ease; box-shadow: 0 0 30px rgba(0,240,255,0.2);}
+        .close-btn { position: absolute; top: 15px; right: 20px; background: transparent; color: var(--danger-neon); border: none; font-size: 2em; cursor: pointer; }
+        
+        #sysAlertModal .modal-content, #sysConfirmModal .modal-content { max-width: 350px; text-align: center; z-index: 10005; border: 2px solid var(--primary-neon); }
+        .sys-title { font-family: 'Orbitron', sans-serif; font-size: 1.5em; margin-bottom: 15px; }
+        .sys-text { font-size: 1.1em; color: #fff; margin-bottom: 25px; line-height: 1.4; }
+
+        #rouletteModal .modal-content { border-color: var(--secondary-neon); text-align: center; }
+        .roulette-display-giant { font-size: 4em; font-family: 'Orbitron', sans-serif; margin: 30px 0; min-height: 80px; text-shadow: 0 0 20px #fff; color: var(--arcade-yellow); }
+        .btn-spin-giant { background: linear-gradient(45deg, var(--secondary-neon), var(--primary-neon)); color: #fff; border: none; padding: 15px 30px; border-radius: 15px; font-weight: 700; font-size: 1.5em; cursor: pointer; box-shadow: 0 0 20px var(--secondary-neon); transition: 0.3s; width: 100%; font-family: 'Orbitron', sans-serif;}
+
+        .modal-action-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 15px; justify-content: space-between; }
+        .btn-action-modal { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; flex: 1; min-width: 120px; text-align: center; transition: 0.3s;}
+        .btn-sword { background: rgba(176, 38, 255, 0.1); border-color: var(--secondary-neon); color: var(--secondary-neon); }
+        .btn-withdraw { background: rgba(0, 255, 136, 0.1); border-color: var(--bonus-neon); color: var(--bonus-neon); font-size: 1.1em;}
+        .btn-delete-modal { background: transparent; color: var(--danger-neon); border: 1px solid var(--danger-neon); border-radius: 8px; padding: 10px; width: 100%; margin-top: 10px; font-weight: 600; cursor: pointer;}
+        .btn-finish-modal { background: rgba(0,255,136,0.1); color: var(--bonus-neon); border: 1px solid var(--bonus-neon); border-radius: 8px; padding: 10px; width: 100%; margin-top: 10px; font-weight: 600; cursor: pointer;}
+        
+        /* Stats Avançados do Modal */
+        .advanced-stats { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin: 15px 0; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;}
+        .stat-row:last-child { border: none; margin: 0; padding: 0; }
+        .val-good { color: var(--bonus-neon); font-weight: bold; }
+        .val-bad { color: var(--danger-neon); font-weight: bold; }
+        .val-neu { color: var(--primary-neon); font-weight: bold; }
+
+        .puzzle-grid { display: flex; flex-wrap: wrap-reverse; gap: 4px; justify-content: center; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.05); margin: 15px 0; }
+        .puzzle-block { width: 34px; height: 34px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-family: 'Orbitron', sans-serif; font-weight: 700; transition: 0.3s; box-shadow: inset 3px 3px 0 rgba(255,255,255,0.3), inset -3px -3px 0 rgba(0,0,0,0.3); border: none; }
+        .puzzle-block.empty { background-color: var(--block-empty); color: rgba(255,255,255,0.1); box-shadow: inset 0 0 5px rgba(0,0,0,0.8); }
+        .puzzle-block.current { transform: scale(1.2); z-index: 2; border: 2px solid #fff; }
+        .bg-0 { background-color: var(--arcade-red); color: white; } .bg-1 { background-color: var(--arcade-blue); color: white; } .bg-2 { background-color: var(--arcade-yellow); color: rgba(0,0,0,0.7); } .bg-3 { background-color: var(--arcade-green); color: white; }
+        .skin-emoji { background: transparent !important; box-shadow: none !important; font-size: 24px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); border: none !important;}
+
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 15px; }
+        .shop-item { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: 0.3s; }
+        .shop-icon { font-size: 2.5em; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
+        .shop-btn { background: rgba(246, 194, 21, 0.1); border: 1px solid var(--warning-neon); color: var(--warning-neon); padding: 8px; border-radius: 8px; width: 100%; font-weight: 700; cursor: pointer; transition: 0.3s;}
+        .shop-btn.owned { border-color: var(--bonus-neon); color: var(--bonus-neon); background: rgba(0,255,136,0.1); }
+
+        .achievements-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 15px; }
+        .ach-card { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px 10px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 5px; filter: grayscale(100%); opacity: 0.5;}
+        .ach-card.unlocked { filter: grayscale(0%); opacity: 1; border-color: var(--primary-neon); box-shadow: 0 0 15px rgba(0,240,255,0.1); background: rgba(0,240,255,0.05);}
+        .ach-icon { font-size: 2em; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-card { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 16px; border: 1px solid rgba(0,240,255,0.2); text-align: center; }
+        .stat-val { font-family: 'Orbitron', sans-serif; font-size: 2em; color: var(--primary-neon); margin-top: 10px; text-shadow: 0 0 15px var(--primary-neon); }
+
+        .nexus-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 15px; }
+        .mascot { width: 60px; height: 60px; background: rgba(10, 15, 30, 0.9); border: 2px solid var(--primary-neon); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8em; cursor: pointer; box-shadow: 0 0 20px rgba(0,240,255,0.4); animation: floatMascot 3s infinite ease-in-out; position: relative; }
+        .notification-badge { position: absolute; top: -5px; right: -5px; background: var(--danger-neon); color: white; width: 22px; height: 22px; border-radius: 50%; font-size: 0.8em; font-weight: bold; display: none; align-items: center; justify-content: center; animation: pulse 1s infinite; }
+        .speech-bubble { width: 340px; max-height: 450px; background: rgba(10, 15, 30, 0.95); border: 2px solid var(--primary-neon); border-radius: 20px 20px 0 20px; display: none; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform-origin: bottom right; animation: fadeIn 0.2s; }
+        .chat-header { background: rgba(0,240,255,0.1); color: var(--primary-neon); padding: 12px; font-weight: 700; display: flex; justify-content: space-between; border-bottom: 1px solid var(--glass-border); }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px; border-radius: 12px; font-size: 0.95em; font-weight: 600; width: fit-content; max-width: 90%; line-height: 1.4; animation: slideInUp 0.3s;}
+        .msg.bot { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); align-self: flex-start; }
+        .msg.user { background: rgba(0, 240, 255, 0.15); border: 1px solid var(--primary-neon); color: #fff; align-self: flex-end; }
+        .chat-input-area { display: flex; padding: 10px; border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.4); }
+        .chat-input-area input { flex: 1; padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 15px; color: #fff; outline: none; }
+        .chat-input-area button { background: var(--primary-neon); border: none; padding: 8px 15px; margin-left: 8px; border-radius: 15px; font-weight: bold; cursor: pointer; }
+        .btn-chat-link { background: rgba(0, 240, 255, 0.1); border: 1px solid var(--primary-neon); color: var(--primary-neon); padding: 6px 12px; border-radius: 12px; font-size: 0.85em; cursor: pointer; margin-top: 5px; font-weight: bold; display: inline-block;}
+
+        .mascot-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); backdrop-filter: blur(15px); display: none; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; text-align: center;}
+        .mascot-presentation { position: relative; margin-bottom: 20px; animation: popBubble 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .mascot-giant { font-size: 130px; filter: drop-shadow(0 0 40px var(--primary-neon)); animation: floatMascot 2.5s infinite ease-in-out; }
+        .mascot-item-badge { position: absolute; bottom: 0; right: -20px; font-size: 60px; background: rgba(255,255,255,0.1); border-radius: 50%; padding: 10px; box-shadow: 0 0 30px rgba(255,255,255,0.3); border: 2px solid #fff; animation: pulse 1.5s infinite; }
+        .mascot-title { font-family: 'Orbitron', sans-serif; font-size: 2.5em; font-weight: 700; margin-bottom: 10px; animation: slideInUp 0.5s; }
+        .mascot-sub { font-size: 1.1em; color: #fff; max-width: 80%; margin: 0 auto; line-height: 1.4; animation: slideInUp 0.7s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes floatMascot { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+        @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes popBubble { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        @media (max-width: 768px) {
+            body { padding: 10px; padding-bottom: 120px; } .glass-panel { padding: 15px; border-radius: 16px; }
+            .puzzle-block { width: 28px; height: 28px; font-size: 9px; }
+            .nexus-wrapper { bottom: 15px; right: 15px; left: 15px; align-items: flex-end; } .speech-bubble { width: 100%; border-radius: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sysAlertModal" class="modal-overlay" style="z-index: 10005;">
+        <div class="modal-content">
+            <h2 id="sysAlertTitle" class="sys-title" style="color: var(--danger-neon);">AVISO</h2>
+            <p id="sysAlertText" class="sys-text"></p>
+            <button class="btn-action-modal" style="width:100%;" onclick="document.getElementById('sysAlertModal').style.display='none'">ENTENDIDO</button>
+        </div>
+    </div>
+    <div id="sysConfirmModal" class="modal-overlay" style="z-index: 10005;">
+        <div class="modal-content" style="border-color: var(--warning-neon);">
+            <h2 id="sysConfirmTitle" class="sys-title" style="color: var(--warning-neon);">CONFIRMAÇÃO</h2>
+            <p id="sysConfirmText" class="sys-text"></p>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-action-modal" onclick="document.getElementById('sysConfirmModal').style.display='none'">CANCELAR</button>
+                <button class="btn-action-modal" style="background: var(--primary-neon); color: #000; border: none;" id="sysConfirmBtn">CONFIRMAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mascotOverlay" class="mascot-overlay">
+        <div class="mascot-presentation">
+            <div class="mascot-giant" id="mascotGiant">🤖</div>
+            <div class="mascot-item-badge" id="mascotItem">🎁</div>
+        </div>
+        <div class="mascot-title" id="mascotTitle">LEVEL UP!</div>
+        <div class="mascot-sub" id="mascotSub">Mensagem motivacional aqui!</div>
+    </div>
+
+    <div id="rouletteModal" class="modal-overlay" onclick="if(event.target===this) closeRoulette()">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeRoulette()">×</button>
+            <h2 style="color: var(--secondary-neon); font-family: 'Orbitron'; text-align:center;">ROLETA DE SUPRIMENTOS</h2>
+            <p style="text-align:center; color: var(--text-muted); margin-bottom: 20px;" id="rouletteCostText">Custo: 50 💠 ou 1x Grátis/Dia</p>
+            <div class="roulette-display-giant" id="rouletteDisplayGiant">🎁</div>
+            <button class="btn-spin-giant" id="btnSpinGiant" onclick="spinRoulette()">GIRAR AGORA</button>
+        </div>
+    </div>
+
+    <input type="file" id="fileUpload" style="display: none;" onchange="handleFileUpload(event)">
+    <input type="file" id="bonusUpload" style="display: none;" onchange="handleBonusUpload(event)">
+
+    <div id="habitModal" class="modal-overlay" onclick="if(event.target===this) closeModal()">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">×</button>
+            <div id="modalContentBody"></div>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="hud-nav">
+            <div class="hud-tabs">
+                <button class="hud-tab-btn active" onclick="switchTab('missions')">Missões</button>
+                <button class="hud-tab-btn" onclick="switchTab('shop')">Mercado</button>
+                <button class="hud-tab-btn" onclick="switchTab('trophies')">Troféus</button>
+                <button class="hud-tab-btn" onclick="switchTab('telemetry')">Dados</button>
+            </div>
+            <div class="hud-tokens"><span id="tokenDisplay">0</span> 💠</div>
+        </div>
+
+        <div id="view-missions" class="view-section active">
+            <div class="glass-panel">
+                <h1>C.O.R.E. TRACKER</h1>
+                <p class="subtitle">Inteligência Estratégica de Hábitos</p>
+                
+                <button class="btn-toggle-form" onclick="toggleForm()">➕ Novo Protocolo Atômico</button>
+                
+                <div class="form-wrapper" id="formWrapper">
+                    <form class="add-habit-form" id="habitForm">
+                        <input type="text" id="habitName" placeholder="Designação da Meta (Ex: Ler Livro)" required>
+                        
+                        <div class="form-group">
+                            <select id="habitUnit" required>
+                                <option value="" disabled selected>Tipo de Hábito (Unidade)</option>
+                                <option value="Dias">Dias (Binário - Ex: Academia, Esportes)</option>
+                                <option value="Páginas">Páginas (Acumulativo - Ex: Livros)</option>
+                                <option value="Minutos">Minutos (Acumulativo - Ex: Foco)</option>
+                                <option value="Unidades">Quantidade (Acumulativo - Ex: Água)</option>
+                            </select>
+                            <input type="number" id="habitTotalUnits" placeholder="Total na Unidade" min="1" required>
+                        </div>
+
+                        <div class="form-group">
+                            <input type="number" id="habitTarget" placeholder="Qtd. Dias (Prazos/Blocos)" min="5" value="30" required>
+                            <input type="number" id="habitValue" placeholder="Valor Financeiro (R$)" min="10" required>
+                        </div>
+                        
+                        <button type="submit">🚀 Iniciar Missão</button>
+                    </form>
+                </div>
+                <ul class="habit-list" id="habitList"></ul>
+            </div>
+        </div>
+
+        <div id="view-shop" class="view-section">
+            <div class="glass-panel">
+                <h1 style="color: var(--arcade-yellow);">MERCADO NEXUS</h1>
+                <div class="shop-grid">
+                    <div class="shop-item"><div class="shop-icon">🛡️</div><div class="shop-name">Escudo Temporal</div><div style="font-size:0.8em; color:var(--primary-neon);">Possui: <span id="inv-shields">0</span></div><button class="shop-btn" onclick="attemptBuyItem('shield', 300)">300 💠</button></div>
+                    <div class="shop-item"><div class="shop-icon">⚔️</div><div class="shop-name">Espada de Avanço</div><div style="font-size:0.8em; color:var(--primary-neon);">Possui: <span id="inv-swords">0</span></div><button class="shop-btn" onclick="attemptBuyItem('sword', 500)">500 💠</button></div>
+                    <div class="shop-item"><div class="shop-icon">🃏</div><div class="shop-name">Coringa (Joker)</div><div style="font-size:0.8em; color:var(--primary-neon);">Possui: <span id="inv-jokers">0</span></div><button class="shop-btn owned" disabled>MÉRITO</button></div>
+                    <div class="shop-item"><div class="shop-icon">🎁</div><div class="shop-name">Caixa Surpresa</div><div style="font-size:0.8em; opacity:0;">-</div><button class="shop-btn" onclick="attemptBuyBox()">150 💠</button></div>
+                </div>
+                <h3 style="color:var(--secondary-neon); margin-top:30px;">Skins Holográficas</h3><div class="shop-grid" id="skinsGrid"></div>
+                <h3 style="color:#fff; margin-top:30px;">Mascotes IA</h3><div class="shop-grid" id="mascotsGrid"></div>
+            </div>
+        </div>
+
+        <div id="view-trophies" class="view-section">
+            <div class="glass-panel">
+                <h1 style="color: var(--primary-neon);">SALA DE CONQUISTAS</h1>
+                <h3 style="color:var(--primary-neon); margin-top:20px;">Medalhas de Honra</h3><div class="achievements-grid" id="achievementsGrid"></div>
+                <h3 style="color:var(--secondary-neon); margin-top:30px;">Protocolos Arquivados</h3>
+                <ul class="habit-list" id="archivedList"></ul>
+            </div>
+        </div>
+
+        <div id="view-telemetry" class="view-section">
+            <div class="glass-panel">
+                <h1>TELEMETRIA</h1>
+                <div class="stat-grid">
+                    <div class="stat-card"><div style="color:var(--text-muted); font-size:0.9em;">Economia Real (Descontos)</div><div class="stat-val money" id="stat-money">R$ 0.00</div></div>
+                    <div class="stat-card"><div style="color:var(--text-muted); font-size:0.9em;">Tokens Minerados</div><div class="stat-val" id="stat-tokens" style="color:var(--warning-neon);">0</div></div>
+                    <div class="stat-card"><div style="color:var(--text-muted); font-size:0.9em;">Dias Concluídos</div><div class="stat-val" id="stat-days" style="color:#fff;">0</div></div>
+                    <div class="stat-card"><div style="color:var(--text-muted); font-size:0.9em;">Escudos Quebrados</div><div class="stat-val" id="stat-shields" style="color:var(--danger-neon);">0</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nexus-wrapper">
+        <div class="speech-bubble" id="chatBubble">
+            <div class="chat-header"><span id="chatTitle">NEXUS</span><button class="close-chat-btn" onclick="toggleChat()">×</button></div>
+            <div class="chat-messages" id="chatBox"></div>
+            <div class="chat-input-area" id="chatInputArea" style="display:none;">
+                <input type="number" id="chatInput" placeholder="Inserir Valor..." autocomplete="off">
+                <button onclick="enviarMensagemChat()">➤</button>
+            </div>
+        </div>
+        <div class="mascot" id="mascotIcon" onclick="toggleChat()">🤖<div class="notification-badge" id="chatBadge">!</div></div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(e => console.log(e)); }
+
+        // Utils
+        function sysAlert(title, text) { document.getElementById('sysAlertTitle').innerText=title; document.getElementById('sysAlertText').innerText=text; document.getElementById('sysAlertModal').style.display='flex'; }
+        function sysConfirm(title, text, cb) { document.getElementById('sysConfirmTitle').innerText=title; document.getElementById('sysConfirmText').innerText=text; document.getElementById('sysConfirmBtn').onclick=()=>{ document.getElementById('sysConfirmModal').style.display='none'; cb(); }; document.getElementById('sysConfirmModal').style.display='flex'; }
+
+        // --- DADOS E MIGRAÇÃO ---
+        let player = JSON.parse(localStorage.getItem('core_player_v10')) || {
+            tokens: 50, totalTokensEarned: 50, moneySaved: 0, daysCompleted: 0, shieldsBroken: 0,
+            inventory: { shields: 0, swords: 0, jokers: 0 },
+            unlockedSkins: ['tetris'], equippedSkin: 'tetris', unlockedMascots: ['🤖'], equippedMascot: '🤖', unlockedAchievements: [], lastSpinDate: 0
+        };
+
+        const SKINS_DATA = [ { id: 'tetris', name: 'Arcade Classic', icon: '🧱', price: 0 }, { id: 'livros', name: 'Biblioteca', icon: '📚', price: 1000 }, { id: 'esportes', name: 'Atleta', icon: '⚽', price: 1000 }, { id: 'estelar', name: 'Cosmos', icon: '🌟', price: 1200 } ];
+        const MASCOTS_DATA = [ { id: '🤖', name: 'NEXUS', price: 0 }, { id: '🦊', name: 'Raposa', price: 800 }, { id: '🦅', name: 'Falcão', price: 800 }, { id: '👽', name: 'Alien', price: 1000 } ];
+        const ACHIEVEMENTS_DATA = [ { id: 'first_step', name: 'Primeiro Passo', desc: 'Concluiu 1 ciclo', icon: '🚀' }, { id: 'streak_3', name: 'Foco Total', desc: '3 dias seguidos', icon: '🔥' }, { id: 'shopper', name: 'Consumidor', desc: 'Comprou na loja', icon: '🛒' }, { id: 'rich', name: 'Magnata', desc: 'Juntou 1000 Tokens', icon: '💎' }, { id: 'completionist', name: 'Veterano', desc: 'Finalizou 1 missão', icon: '🎖️' } ];
+
+        let habits = JSON.parse(localStorage.getItem('core_habits_v10')) || [];
+        let archivedHabits = JSON.parse(localStorage.getItem('core_archived_v10')) || [];
+        let pendingActionId = null; let currentModalHabitId = null;
+
+        function saveAll() { localStorage.setItem('core_player_v10', JSON.stringify(player)); localStorage.setItem('core_habits_v10', JSON.stringify(habits)); localStorage.setItem('core_archived_v10', JSON.stringify(archivedHabits)); updateHUD(); checkAchievements(); }
+
+        function switchTab(t) { document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active')); document.querySelectorAll('.hud-tab-btn').forEach(e=>e.classList.remove('active')); document.getElementById('view-'+t).classList.add('active'); event.target.classList.add('active'); if(t==='shop') renderShop(); if(t==='telemetry') renderStats(); if(t==='trophies') renderTrophies(); }
+
+        function updateHUD() {
+            document.getElementById('tokenDisplay').innerText = player.tokens;
+            if(document.getElementById('inv-shields')) document.getElementById('inv-shields').innerText = player.inventory.shields;
+            if(document.getElementById('inv-swords')) document.getElementById('inv-swords').innerText = player.inventory.swords;
+            if(document.getElementById('inv-jokers')) document.getElementById('inv-jokers').innerText = player.inventory.jokers;
+            document.getElementById('mascotIcon').innerHTML = `${player.equippedMascot}<div class="notification-badge" id="chatBadge" style="display:none;">!</div>`;
+            document.getElementById('chatTitle').innerText = MASCOTS_DATA.find(m=>m.id===player.equippedMascot)?.name || 'IA';
+        }
+
+        function showMascotAnimation(icon, title, subtitle, color) {
+            document.getElementById('mascotGiant').innerText = player.equippedMascot;
+            document.getElementById('mascotItem').innerText = icon;
+            document.getElementById('mascotTitle').innerText = title; document.getElementById('mascotTitle').style.color = color;
+            document.getElementById('mascotSub').innerText = subtitle;
+            const o = document.getElementById('mascotOverlay'); o.style.display='flex'; o.style.opacity='1';
+            setTimeout(() => { o.style.transition='opacity 0.5s ease'; o.style.opacity='0'; setTimeout(()=>o.style.display='none', 500); }, 4000);
+        }
+
+        // --- SISTEMAS SECUNDÁRIOS (Lojas, Roleta, Conquistas) ---
+        function checkAchievements() { if (player.daysCompleted >= 1 && !player.unlockedAchievements.includes('first_step')) { player.unlockedAchievements.push('first_step'); showMascotAnimation('🚀', "CONQUISTA!", 'Primeiro Passo', "var(--primary-neon)"); } }
+        function unlockAchievementDirect(id) { if(!player.unlockedAchievements.includes(id)) { player.unlockedAchievements.push(id); saveAll(); const a = ACHIEVEMENTS_DATA.find(x=>x.id===id); if(a) setTimeout(()=>showMascotAnimation(a.icon, "CONQUISTA!", a.name, "var(--primary-neon)"), 500); } }
+        function renderTrophies() { document.getElementById('achievementsGrid').innerHTML = ACHIEVEMENTS_DATA.map(a => `<div class="ach-card ${player.unlockedAchievements.includes(a.id)?'unlocked':''}"><div class="ach-icon">${a.icon}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`).join(''); document.getElementById('archivedList').innerHTML = archivedHabits.length ? archivedHabits.map(h => `<li class="habit-card-compact" style="cursor:default;"><div class="habit-card-info"><span class="habit-title" style="color:var(--bonus-neon);">✔️ ${h.name}</span><span class="habit-value-badge">Missão Cumprida: ${h.target} ciclos</span></div></li>`).join('') : `<p style="text-align:center; color:var(--text-muted);">Nenhum protocolo finalizado.</p>`; }
+        function renderShop() {
+            document.getElementById('skinsGrid').innerHTML = SKINS_DATA.map(s => { const o = player.unlockedSkins.includes(s.id); const eq = player.equippedSkin === s.id; let btn = `<button class="shop-btn" onclick="attemptBuySkin('${s.id}', ${s.price}, '${s.name}')">${s.price} 💠</button>`; if(eq) btn = `<button class="shop-btn owned" disabled>EQUIPADO</button>`; else if(o) btn = `<button class="shop-btn owned" onclick="equipSkin('${s.id}')">EQUIPAR</button>`; return `<div class="shop-item"><div class="shop-icon">${s.icon}</div><div class="shop-name">${s.name}</div>${btn}</div>`; }).join('');
+            document.getElementById('mascotsGrid').innerHTML = MASCOTS_DATA.map(m => { const o = player.unlockedMascots.includes(m.id); const eq = player.equippedMascot === m.id; let btn = `<button class="shop-btn" onclick="attemptBuyMascot('${m.id}', ${m.price}, '${m.name}')">${m.price} 💠</button>`; if(eq) btn = `<button class="shop-btn owned" disabled>EQUIPADO</button>`; else if(o) btn = `<button class="shop-btn owned" onclick="equipMascot('${m.id}')">EQUIPAR</button>`; return `<div class="shop-item"><div class="shop-icon">${m.id}</div><div class="shop-name">${m.name}</div>${btn}</div>`; }).join('');
+        }
+        function attemptBuyItem(t, p) { if(player.tokens<p) return sysAlert("NEGADO", "Tokens insuficientes."); sysConfirm("AUTORIZAÇÃO", `Comprar ${t==='shield'?'Escudo':'Espada'} por ${p} 💠?`, ()=>{ player.tokens-=p; if(t==='shield') player.inventory.shields++; if(t==='sword') player.inventory.swords++; unlockAchievementDirect('shopper'); saveAll(); showMascotAnimation("🛒", "COMPRA SUCESSO!", "Item armazenado.", "var(--bonus-neon)"); }); }
+        function attemptBuyBox() { if(player.tokens<150) return sysAlert("NEGADO", "Tokens insuficientes."); sysConfirm("AUTORIZAÇÃO", `Abrir Caixa Surpresa por 150 💠?`, ()=>{ player.tokens-=150; unlockAchievementDirect('shopper'); const r=Math.random(); let p=""; if(r<0.4){player.inventory.shields++; p="1x Escudo 🛡️";} else if(r<0.7){player.inventory.swords++; p="1x Espada ⚔️";} else if(r<0.9){player.tokens+=250; player.totalTokensEarned+=250; p="250 💠!";} else {player.tokens+=500; player.totalTokensEarned+=500; p="JACKPOT 500 💠!";} saveAll(); showMascotAnimation("🎁", "DECODIFICADO!", `A caixa revelou: ${p}`, "var(--primary-neon)"); }); }
+        function attemptBuySkin(id, p, n) { if(player.tokens<p) return sysAlert("NEGADO", "Tokens insuficientes."); sysConfirm("AUTORIZAÇÃO", `Comprar skin [${n}] por ${p} 💠?`, ()=>{ player.tokens-=p; player.unlockedSkins.push(id); equipSkin(id); unlockAchievementDirect('shopper'); }); }
+        function attemptBuyMascot(id, p, n) { if(player.tokens<p) return sysAlert("NEGADO", "Tokens insuficientes."); sysConfirm("AUTORIZAÇÃO", `Comprar IA [${n}] por ${p} 💠?`, ()=>{ player.tokens-=p; player.unlockedMascots.push(id); equipMascot(id); unlockAchievementDirect('shopper'); }); }
+        function equipSkin(id) { player.equippedSkin = id; saveAll(); renderShop(); renderHabits(); }
+        function equipMascot(id) { player.equippedMascot = id; saveAll(); renderShop(); }
+        function renderStats() { document.getElementById('stat-money').innerText = `R$ ${player.moneySaved.toFixed(2)}`; document.getElementById('stat-tokens').innerText = player.totalTokensEarned; document.getElementById('stat-days').innerText = player.daysCompleted; document.getElementById('stat-shields').innerText = player.shieldsBroken; }
+
+        function openRoulette() { document.getElementById('rouletteModal').style.display = 'flex'; }
+        function closeRoulette() { document.getElementById('rouletteModal').style.display = 'none'; }
+        function spinRoulette() {
+            const today = new Date().setHours(0,0,0,0); const isFree = player.lastSpinDate !== today;
+            if (!isFree && player.tokens < 50) return sysAlert("NEGADO", "Tokens insuficientes para forçar giro adicional.");
+            if (!isFree) { sysConfirm("ROLETA", "Gastar 50 💠 para um giro extra?", () => { executeSpin(false); }); } else { executeSpin(true); }
+        }
+        function executeSpin(isFree) {
+            if (!isFree) player.tokens -= 50; 
+            player.lastSpinDate = new Date().setHours(0,0,0,0); saveAll(); unlockAchievementDirect('gambler');
+            const display = document.getElementById('rouletteDisplayGiant'); const btn = document.getElementById('btnSpinGiant'); btn.disabled = true;
+            const prizes = [ { t: "10 💠", ty: "tok", v: 10 }, { t: "50 💠", ty: "tok", v: 50 }, { t: "100 💠", ty: "tok", v: 100 }, { t: "🛡️ Escudo", ty: "sh", v: 1 }, { t: "⚔️ Espada", ty: "sw", v: 1 }, { t: "Nada 💔", ty: "no", v: 0 }, { t: "200 💠", ty: "tok", v: 200 } ];
+            let ticks = 0;
+            const interval = setInterval(() => {
+                display.innerText = prizes[ticks % prizes.length].text; ticks++;
+                if(ticks > 25) {
+                    clearInterval(interval); const p = prizes[Math.floor(Math.random() * prizes.length)]; display.innerText = p.t;
+                    if(p.ty === 'tok') { player.tokens += p.v; player.totalTokensEarned += p.v; } 
+                    else if (p.ty === 'sh') player.inventory.shields += p.v; else if (p.ty === 'sw') player.inventory.swords += p.v;
+                    saveAll(); btn.disabled = false;
+                    setTimeout(() => { closeRoulette(); showMascotAnimation("🎰", "ROLETA", `Prêmio: ${p.t}`, "var(--secondary-neon)"); }, 800);
+                }
+            }, 100);
+        }
+
+        // --- SISTEMA INTELIGENTE DE HÁBITOS (SMART METRICS) ---
+        function toggleForm() { document.getElementById('formWrapper').classList.toggle('active'); }
+        
+        document.getElementById('habitForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const unit = document.getElementById('habitUnit').value;
+            const isBinary = (unit === 'Dias');
+            const tgBlocks = parseInt(document.getElementById('habitTarget').value);
+            const totalVal = parseFloat(document.getElementById('habitTotalUnits').value);
+            
+            habits.push({
+                id: Date.now(), name: document.getElementById('habitName').value, target: tgBlocks, 
+                totalValue: parseFloat(document.getElementById('habitValue').value),
+                unitType: unit, isBinary: isBinary, rawTotalValue: totalVal, rawCurrent: 0, valPerBlock: totalVal / tgBlocks,
+                current: 0, proofsSubmitted: 0, bonusSubmitted: 0, streakCounter: 0, discountPerc: 0, saldoIndividual: 0,
+                startDate: Date.now(), deadlineTimestamp: Date.now() + (tgBlocks * 86400000), lastActionTimestamp: Date.now()
+            });
+            saveAll(); renderHabits(); this.reset(); toggleForm();
+            addBotMessage(`💠 Missão Iniciada. Monitoramento ativado.`); iniciarChat(false);
+        });
+
+        function getBlocksHTML(h) {
+            let blocks = ''; const skinType = player.equippedSkin; const isEmoji = skinType !== 'tetris';
+            const emojis = { 'livros': ['📘', '📗', '📙', '📕'], 'esportes': ['⚽', '🏀', '🏈', '⚾'], 'estelar': ['🌟', '☄️', '🪐', '🌙'] };
+            for (let i = 1; i <= h.target; i++) {
+                let cls = 'puzzle-block'; let content = i;
+                if (isEmoji) { cls += ' skin-emoji'; const iconList = emojis[skinType]; content = iconList[Math.floor((i-1)/5) % iconList.length]; }
+                if (i <= h.current) { cls += ' current'; } 
+                else if (!isEmoji) { 
+                    if (i <= 5) cls += ' fase-ferro'; else if (i <= 10) cls += ' fase-bronze'; else if (i <= 15) cls += ' fase-prata'; else if (i <= 20) cls += ' fase-ouro'; else if (i <= 25) cls += ' fase-platina'; else cls += ' fase-diamante';
+                } else { cls += ' empty'; }
+                blocks += `<div class="${cls}">${content}</div>`;
+            }
+            return `<div class="puzzle-grid">${blocks}</div>`;
+        }
+
+        function renderHabits() {
+            const list = document.getElementById('habitList');
+            list.innerHTML = habits.map(h => {
+                let subt = h.isBinary ? `${h.current}/${h.target} Dias` : `${h.rawCurrent.toFixed(1)}/${h.rawTotalValue} ${h.unitType}`;
+                return `<li class="habit-card-compact" onclick="openModal(${h.id})"><div class="habit-card-info"><span class="habit-title">${h.name}</span><span class="habit-value-badge">Avanço: ${subt}</span></div><button class="btn-access">ABRIR 💠</button></li>`;
+            }).join('');
+            if (currentModalHabitId) openModal(currentModalHabitId);
+        }
+
+        function getStatus(h) {
+            const expBonus = Math.floor(((h.current / h.target) * 100) / 30);
+            if (expBonus > h.bonusSubmitted && h.current > 0) return 'BLOCK_BONUS';
+            if (h.current >= (h.proofsSubmitted + 1) * 5 && h.current < h.target) return 'BLOCK_REGULAR';
+            return 'FREE';
+        }
+
+        function openModal(id) {
+            currentModalHabitId = id; const h = habits.find(h => h.id === id); if (!h) return;
+            const status = getStatus(h); const isCompleted = h.current >= h.target;
+
+            // SMART METRICS: Cálculo de Atraso/Adiantamento se for Cumulativo
+            let advStats = '';
+            if (!h.isBinary && h.current > 0 && !isCompleted) {
+                const daysPassed = Math.floor((Date.now() - h.startDate) / 86400000) || 1;
+                const expectedCurrent = daysPassed * h.valPerBlock;
+                const diff = h.rawCurrent - expectedCurrent;
+                let statClass = diff > 0 ? 'val-good' : (diff < 0 ? 'val-bad' : 'val-neu');
+                let statText = diff > 0 ? `${diff.toFixed(1)} ${h.unitType} adiantado!` : (diff < 0 ? `${Math.abs(diff).toFixed(1)} ${h.unitType} em atraso!` : 'Exatamente na média!');
+                
+                advStats = `
+                    <div class="advanced-stats">
+                        <div class="stat-row"><span>Média Diária Exigida:</span> <strong>${h.valPerBlock.toFixed(1)} ${h.unitType}</strong></div>
+                        <div class="stat-row"><span>Desempenho Atual:</span> <span class="${statClass}">${statText}</span></div>
+                    </div>
+                `;
+            }
+
+            let actionBtn = `<button class="btn-action-modal" onclick="requestProgressInput(${h.id})" ${isCompleted ? 'disabled' : ''}>${h.isBinary ? '+1 Dia' : 'Lançar Progresso'}</button>`;
+            
+            if (status === 'BLOCK_REGULAR') actionBtn = `<button class="btn-action-modal btn-proof" onclick="triggerUpload(${h.id}, 'regular')">📄 Enviar 5 Dias</button>`;
+            if (status === 'BLOCK_BONUS') actionBtn = `<button class="btn-action-modal btn-bonus" onclick="triggerUpload(${h.id}, 'bonus')">💎 Pagar Bônus (-${h.discountPerc}%)</button>`;
+
+            document.getElementById('modalContentBody').innerHTML = `
+                <h2 style="color: var(--primary-neon); margin-bottom: 5px; font-family:'Orbitron';">${h.name} [ ${Math.round((h.current/h.target)*100)}% ]</h2>
+                ${advStats}
+                <div class="finance-panel">
+                    <div class="finance-box"><span style="color:var(--text-muted); font-size:0.8em;">Saldo Disponível</span><strong style="color:var(--bonus-neon); font-size:1.2em;">R$ ${h.saldoIndividual.toFixed(2)}</strong></div>
+                    <button class="btn-withdraw" onclick="sysConfirm('SACAR', 'O Saldo Disponível será zerado para você gastar. Confirmar?', () => withdrawSaldo(${h.id}))" style="padding: 10px; border-radius:8px; cursor:pointer;">💸 SACAR</button>
+                </div>
+                ${getBlocksHTML(h)}
+                <div class="modal-action-group">${actionBtn}</div>
+                ${isCompleted ? `<button class="btn-finish-modal" onclick="archiveHabit(${h.id})">🏆 Finalizar e Arquivar Missão</button>` : `<button class="btn-delete-modal" onclick="sysConfirm('ATENÇÃO', 'Abortar esta missão?', () => deleteHabit(${h.id}))">Abortar Missão</button>`}
+            `;
+            document.getElementById('habitModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('habitModal').style.display = 'none'; currentModalHabitId = null; }
+
+        function deleteHabit(id) { habits = habits.filter(h => h.id !== id); saveAll(); renderHabits(); closeModal(); iniciarChat(false); }
+        function archiveHabit(id) { const h = habits.find(x => x.id === id); if(h && h.current >= h.target) { archivedHabits.push(h); habits = habits.filter(x => x.id !== id); unlockAchievementDirect('completionist'); saveAll(); renderHabits(); closeModal(); showMascotAnimation("🎖️", "CUMPRIDA!", "Salvo no Arquivo.", "var(--primary-neon)"); } }
+        function withdrawSaldo(id) { const h = habits.find(x => x.id === id); h.saldoIndividual = 0; saveAll(); renderHabits(); closeModal(); showMascotAnimation("💸", "SAQUE", "Aproveite!", "var(--bonus-neon)"); }
+
+        function triggerUpload(id, t) { pendingActionId = id; document.getElementById(t === 'regular' ? 'fileUpload' : 'bonusUpload').click(); }
+        function handleFileUpload(e) { if(!e.target.files[0]) return; const h=habits.find(x=>x.id===pendingActionId); h.proofsSubmitted++; const calcP = (h.totalValue / h.target) * 5; h.saldoIndividual += calcP; player.moneySaved += calcP; saveAll(); renderHabits(); closeModal(); showMascotAnimation("📄", "VALIDADO", "Saldo atualizado.", "var(--warning-neon)"); }
+        function handleBonusUpload(e) { if(!e.target.files[0]) return; const h = habits.find(x=>x.id===pendingActionId); h.bonusSubmitted++; const baseB = (h.totalValue * 0.3) / 3; const valDesc = baseB * (1 - (h.discountPerc/100)); h.saldoIndividual += valDesc; player.moneySaved += valDesc; h.discountPerc = 0; player.tokens += 100; player.totalTokensEarned += 100; saveAll(); renderHabits(); closeModal(); showMascotAnimation("💎", "BÔNUS!", "Saldo expandido!", "var(--bonus-neon)"); }
+
+        // --- SISTEMA DE CHAT & DEEP LINKS ---
+        const chatBox = document.getElementById('chatBox');
+        function toggleChat() { const b = document.getElementById('chatBubble'); const i = document.getElementById('chatBadge'); if(b.style.display === 'flex') b.style.display = 'none'; else { b.style.display = 'flex'; i.style.display = 'none'; chatBox.scrollTop = 9999; } }
+        
+        function addBotMessage(t, linkHTML='', isA=false) {
+            let h = `<div class="msg bot">${t}</div>`;
+            if(linkHTML) h+= linkHTML;
+            chatBox.innerHTML += h; chatBox.scrollTop=9999;
+            if(isA) { document.getElementById('chatBubble').style.display='flex'; document.getElementById('chatBadge').style.display='none'; } else if(document.getElementById('chatBubble').style.display!=='flex') document.getElementById('chatBadge').style.display='flex';
+        }
+
+        function iniciarChat(isA=false) {
+            chatBox.innerHTML=''; window.chatState = { step: 'IDLE', habitId: null }; document.getElementById('chatInputArea').style.display = 'none';
+            const today = new Date().setHours(0,0,0,0);
+            if (player.lastSpinDate !== today) { addBotMessage("🎰 Lembrete: Seu giro grátis na Roleta de Suprimentos está ativo hoje!", `<button class="btn-chat-link" onclick="toggleChat(); openRoulette();">🎰 Abrir Roleta</button>`, true); }
+        }
+
+        function requestProgressInput(id) {
+            const h = habits.find(x=>x.id===id);
+            if (h.isBinary) { processProgress(id, 1); return; } // Vai direto
+            
+            // É cumulativo. Pede no chat o valor exato.
+            closeModal();
+            chatState = { step: 'WAITING_VAL', habitId: id };
+            document.getElementById('chatInputArea').style.display = 'flex';
+            document.getElementById('chatInput').placeholder = `Qtd de ${h.unitType}...`;
+            addBotMessage(`Quantas [${h.unitType}] você completou hoje em "${h.name}"?`, '', true);
+        }
+
+        window.enviarMensagemChat = function() {
+            const v = document.getElementById('chatInput').value; if(!v || chatState.step !== 'WAITING_VAL') return;
+            chatBox.innerHTML += `<div class="msg user">${v}</div>`; document.getElementById('chatInput').value='';
+            document.getElementById('chatInputArea').style.display = 'none';
+            
+            const num = parseFloat(v);
+            if (!isNaN(num) && num > 0) {
+                const h = habits.find(x=>x.id===chatState.habitId);
+                h.rawCurrent += num; // Adiciona o valor cru (ex: 15 páginas)
+                const newCycles = Math.floor(h.rawCurrent / h.valPerBlock) - h.current; // Quantos ciclos fechou agora
+                
+                if (newCycles > 0) {
+                    processProgress(h.id, newCycles);
+                } else {
+                    saveAll(); renderHabits();
+                    addBotMessage(`Valor registrado. Você fez ${h.rawCurrent.toFixed(1)} de ${h.valPerBlock.toFixed(1)} ${h.unitType} para fechar o próximo ciclo!`, `<button class="btn-chat-link" onclick="toggleChat(); openModal(${h.id});">📂 Abrir Missão</button>`, true);
+                }
+            }
+        };
+
+        function processProgress(id, cyclesGained) {
+            const h = habits.find(x=>x.id===id); const pAntes = (h.current/h.target)*100;
+            
+            if(h.isBinary) { h.rawCurrent += cyclesGained; } // Binario: rawCurrent e current são os mesmos
+            h.current += cyclesGained; if(h.current>h.target) h.current=h.target;
+            h.lastActionTimestamp = Date.now();
+            
+            player.tokens += (10 * cyclesGained); player.totalTokensEarned += (10 * cyclesGained); player.daysCompleted += cyclesGained;
+            h.discountPerc += (5 * cyclesGained); h.streakCounter += cyclesGained; let streaks = 0;
+            while(h.streakCounter>=7) { player.inventory.jokers++; h.streakCounter-=7; streaks++; } // Coringa a cada 7
+            if(h.discountPerc>100) h.discountPerc=100;
+
+            saveAll(); renderHabits(); const pDep = (h.current/h.target)*100;
+
+            if (Math.floor(pDep/30) > Math.floor(pAntes/30)) {
+                closeModal(); addBotMessage(`🚀 Patamar de Bônus atingido em "${h.name}"!`, `<button class="btn-chat-link" onclick="toggleChat(); openModal(${h.id});">📂 Abrir Missão</button>`, true);
+            } else if (streaks > 0) {
+                closeModal(); showMascotAnimation("🃏", "MÉRITO!", "7 Ciclos de Foco: 1x Coringa", "var(--secondary-neon)");
+            } else {
+                closeModal(); const stat = getStatus(h);
+                if(stat!=='FREE') addBotMessage(`⚠️ Bloqueio financeiro acionado em "${h.name}".`, `<button class="btn-chat-link" onclick="toggleChat(); openModal(${h.id});">📂 Abrir Missão</button>`, true);
+                else { showMascotAnimation("⭐", "AÇÃO VALIDA", "Registrado com sucesso!", "var(--arcade-yellow)"); addBotMessage(`Progresso computado!`, [], false); }
+            }
+        }
+
+        // --- CHECAGEM DE FALHAS DIÁRIAS ---
+        function checkMissedDays() {
+            const todayStart = new Date().setHours(0,0,0,0); let alertMsg = ""; let failId = null;
+            habits.forEach(h => {
+                if (h.current < h.target) {
+                    const lastActionStart = new Date(h.lastActionTimestamp).setHours(0,0,0,0);
+                    const diff = Math.floor((todayStart - lastActionStart) / 86400000);
+                    if (diff > 1) {
+                        const missed = diff - 1; failId = h.id;
+                        if (player.inventory.shields >= missed) { player.inventory.shields -= missed; player.shieldsBroken += missed; alertMsg += `🛡️ Escudo defendeu "${h.name}"!\n`; } 
+                        else if (player.inventory.jokers >= missed) { player.inventory.jokers -= missed; player.shieldsBroken += missed; alertMsg += `🃏 Coringa defendeu "${h.name}"!\n`; }
+                        else { h.streakCounter=0; h.discountPerc=Math.max(0, h.discountPerc-(5*missed)); h.deadlineTimestamp+=(missed*86400000); alertMsg += `💔 Falha em "${h.name}". Foco quebrado.\n`; }
+                        h.lastActionTimestamp = Date.now() - 86400000; 
+                    }
+                }
+            });
+            if (alertMsg) { 
+                saveAll(); 
+                setTimeout(()=> { 
+                    showMascotAnimation("💔", "ALERTA", "Atenção necessária.", "var(--danger-neon)"); 
+                    let link = failId ? `<button class="btn-chat-link" onclick="toggleChat(); openModal(${failId});">📂 Ver Missão Afetada</button>` : '';
+                    addBotMessage(`Ausência detectada. Usei suas defesas ou ajustei prazos. Recupere o foco! \n${alertMsg}`, link, true); 
+                }, 1000); 
+            }
+        }
+
+        checkMissedDays(); updateHUD(); renderHabits(); renderTrophies(); setTimeout(()=>iniciarChat(false), 500);
+    </script>
+</body>
+</html>
